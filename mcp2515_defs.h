@@ -49,7 +49,7 @@ enum MCP2515_INTTYPE{
 	MCP2515_INT_ERR, MCP2515_INT_WAK, MCP2515_INT_MERR /* Receive Interrupt
 							      Wake-up Interrupt
 							      Message Error     */
-}
+};
 
 /* Pin Control */
 #define MCP2515_REG_BFPCTRL	0x0C
