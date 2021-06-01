@@ -11,6 +11,9 @@
 
 #include <cc_mcp2515.h>
 
+#define MCP2515_SELECT()   digitalWrite(_mcp_cs, LOW)
+#define MCP2515_DESELECT() digitalWrite(_mcp_cs, HIGH)
+
 #define LIMITCNT_INITCHK 10
 #define WAIT1000MS      1000
 #define MAXCONTINUOUSREAD 16
@@ -112,14 +115,14 @@ uint8_t CCM2515::orderInst(uint8_t inst){
  */
 uint8_t CCM2515::orderSend(uint8_t inst, uint8_t *sendData, int slen){
     SPI.beginTransaction(mcp2515_spicnf);
-    digitalWrite(_mcp_cs, LOW);
+    MCP2515_SELECT();
     SPI.transfer(inst);
     if(sendData != 0){
         for(int i = 0; i < slen; i++){
             SPI.transfer(sendData[i]);
         }
     }
-    digitalWrite(_mcp_cs, HIGH);
+    MCP2515_DESELECT();
     SPI.endTransaction();
     return 0;
 }
@@ -151,7 +154,7 @@ uint8_t CCM2515::orderRecv(uint8_t inst, uint8_t address, uint8_t *recvData, int
  */
 uint8_t CCM2515::orderRecv(uint8_t inst, uint8_t *address, uint8_t *recvData, int rlen){
     SPI.beginTransaction(mcp2515_spicnf);
-    digitalWrite(_mcp_cs, LOW);
+    MCP2515_SELECT();
 
     SPI.transfer(inst);
     if(address != 0){
@@ -160,7 +163,7 @@ uint8_t CCM2515::orderRecv(uint8_t inst, uint8_t *address, uint8_t *recvData, in
     for(int i = 0; i < rlen; i++){
         recvData[i] = SPI.transfer(0);
     }
-    digitalWrite(_mcp_cs, HIGH);
+    MCP2515_DESELECT();
     SPI.endTransaction();
     return 0;
 }
