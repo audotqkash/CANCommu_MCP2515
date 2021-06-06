@@ -10,6 +10,12 @@
  */
 
 #ifndef __MCP2515_DEFS_H_
+#define __MCP2515_DEFS_H_
+
+/* Digital Pin */
+#define MCP2515_PIN_RX0BUF 11
+#define MCP2515_PIN_RX1BUF 10
+#define MCP2515_PIN_INT    12
 
 /* CAN Control */
 #define MCP2515_REG_CANCTRL	0x0F

@@ -28,6 +28,17 @@ CCM2515::CCM2515(uint32_t cs, uint32_t spisped = 10000000){
 }
 
 /**
+ * @param [in] cs       SPI chip select(slave select) pin number
+ * @param [in] spispd   SPI clock speed (Default = 10MHz)
+ * @param [in] 
+*/
+CCM2515::CCM2515(uint32_t cs, uint32_t spisped = 10000000, mcp2515pktype type = soic){
+    _init(cs);
+    mode = 0xff;
+    _pktype = type;
+}
+
+/**
  *  @brief setup spi configuration
  *  @details SPI baudrate, bit Order, SPImode.
  *  @param[in] cs : slave select pin
@@ -340,28 +351,80 @@ void CCM2515::setConfig(uint8_t brp, uint8_t ps1, uint8_t ps2, uint8_t prseg, ui
 void CCM2515::setConfig(uint8_t cnf1, uint8_t cnf2, uint8_t cnf3){
     uint8_t data[3];
 
-    data[0] = MCP2515_REG_CNF1;
-    data[1] = MCP2515_MSK_PS1 | MCP2515_MSK_PRSEG | MCP2515_MSK_SAM | MCP2515_MSK_BTLMD;
-    data[2] = cnf1;
-    orderSend(MCP2515_CMD_BITMOD, data, 3);
+    bitsWrite(MCP2515_REG_CNF1, MCP2515_MSK_PS1 | MCP2515_MSK_PRSEG | MCP2515_MSK_SAM | MCP2515_MSK_BTLMD, cnf1);
 
+    bitsWrite(MCP2515_REG_CNF2, MCP2515_MSK_SJW | MCP2515_MSK_BRP, cnf2);
 
-    data[0] = MCP2515_REG_CNF2;
-    data[1] = MCP2515_MSK_SJW | MCP2515_MSK_BRP;
-    data[2] = cnf2;
-    orderSend(MCP2515_CMD_BITMOD, data, 3);
-
-
-    data[0] = MCP2515_REG_CNF3;
-    data[1] = MCP2515_MSK_PS2;
-    data[2] = cnf3;
-    orderSend(MCP2515_CMD_BITMOD, data, 3);
-
+    bitsWrite(MCP2515_REG_CNF3, MCP2515_MSK_PS2, cnf3);
 
     readBytes(MCP2515_REG_CNF3, data,3);
     Serial.printf("        |- CNF1 %02X, ", data[2]);
     Serial.printf("CNF2 %02X, ",data[1]);
     Serial.printf("CNF3 %02X\n",data[0]);
+}
+
+/**
+ * @brief 受信バッファ状態通知ピンの出力設定
+ * @param[in] rxbnum 受信バッファ番号
+ * @param[in] md 0: 禁止, 1: 割り込み, 0xff: デジタル出力1, それ以外: 0
+*/
+void CCM2515::pinMode(mcp2515pin pin, mcp2515pinmd md){
+    /* | BnBFS | BnBFE  | BnBFM  | */
+    /* |   φ   |   0    |   φ    | *//* ピン出力禁止, ハイインピーダンス*/
+    /* |   φ   |   1    |   1    | *//* データ受信時, 割り込みピン*/
+    /* |   0   |   1    |   0    | *//* デジタル出力  LOW        */
+    /* |   1   |   1    |   0    | *//* デジタル出力  HIGH       */
+
+    uint8_t dat = 0x0;
+    uint8_t ret = 0x0;
+    uint8_t bufnum = 0x0;
+
+    if(_pktype == mcp2515pktype::soic){}
+    if(pin < mcp2515pin::RX1BUF ||  mcp2515pin::RX0BUF < pin){
+        Serial.printf(" [!] 受信バッファ番号は11~12までです. (req : %d)\n", pin);
+    }
+
+    if(_pktype == mcp2515pktype::soic || _pktype == mcp2515pktype::pdip){
+        bufnum = (pin + 1) % 2;
+    }else{
+        bufnum = pin % 2;
+    }
+
+    switch(md){
+        case mcp2515pinmd::disable:          /* ピン出力禁止, ハイインピーダンス*/
+            dat = 0b00000000;
+            break;
+        case mcp2515pinmd::interrupt:          /* データ受信時, 割り込みピン*/
+            dat = 0b00001111;
+            break;
+        case mcp2515pinmd::low:
+            dat = 0b00001100;  /*Digital Low Signal*/
+            break;
+        case mcp2515pinmd::high:
+            dat = 0b00111100;  /*Digital High Signal*/
+            break;
+        default:
+            dat = 0b00111100;  /*Digital High Signal*/
+            break;
+    }
+
+    bitsWrite(MCP2515_REG_BFPCTRL, 0b00010101 << bufnum, dat);
+    ret = readByte(MCP2515_REG_BFPCTRL);
+    
+    if((ret & (0b00100 << bufnum)) != 0){
+        if((ret & (0b00001 << bufnum)) != 0){
+            Serial.printf("        |- RXB%d : %s\n", bufnum, "Interrupt Notify");
+        }else{
+            if((ret & (0b010000 << bufnum)) != 0){
+                Serial.printf("        |- RXB%d : %s\n", bufnum, "DigSig : High");
+            }else{
+                Serial.printf("        |- RXB%d : %s\n", bufnum, "DigSig : Low");
+            }
+        }
+    }else{
+         Serial.printf("        |- RXB%d : %s\n", bufnum, "High-impedance");
+    }
+    
 }
 
 
@@ -380,6 +443,29 @@ uint8_t CCM2515::readByte(uint8_t address){
 size_t CCM2515::readBytes(uint8_t address, uint8_t *data, size_t len){
     orderRecv(MCP2515_CMD_READ, address, data, len);
     return len;
+}
+
+/**
+ * @brief modify bit value of registor
+ */
+void CCM2515::bitWrite(uint8_t address, uint8_t bitnum, uint8_t value){
+    bitsWrite(address, bit(bitnum), (value & 0x1) << bitnum);
+}
+
+/**
+ * @brief modify selected bits value of registor
+ * @param address[in]   : registor value
+ * @param mask   write bit mask
+ * @param value  write value
+ * @return  none
+ */ 
+void CCM2515::bitsWrite(uint8_t address, uint8_t mask, uint8_t value){
+    uint8_t data[3] = {0};
+
+    data[0] = address;
+    data[1] = mask;
+    data[2] = value;
+    orderSend(MCP2515_CMD_BITMOD, data, 3);
 }
 
 
