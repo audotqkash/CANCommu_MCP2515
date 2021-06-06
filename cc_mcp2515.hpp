@@ -48,10 +48,14 @@ class CCM2515
 
         uint8_t begin(void);            /* end of setup */
         uint8_t reset(void);            /* reset        */
+
         bool setConfig(uint32_t canspd, canbaudrate oscfreq);
         void setConfig(uint8_t brp, uint8_t ps1, uint8_t ps2, uint8_t prseg);
         void setConfig(uint8_t brp, uint8_t ps1, uint8_t ps2, uint8_t prseg, uint8_t sjw);
         void setConfig(uint8_t cnf1, uint8_t cnf2, uint8_t cnf3);
+
+        uint8_t readByte(uint8_t address);
+        size_t  readBytes(uint8_t address, uint8_t *data, size_t len);
 
 };
 

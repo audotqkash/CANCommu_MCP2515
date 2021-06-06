@@ -105,7 +105,7 @@ uint8_t CCM2515::checkinit(void){
     uint8_t ret;
     uint8_t data[MAXCONTINUOUSREAD];
 
-    orderRecv(MCP2515_CMD_READ, 0x20, data, MAXCONTINUOUSREAD);
+    readBytes(0x20, data, MAXCONTINUOUSREAD);
 
     for(int regL = 0x0; regL < MAXCONTINUOUSREAD; regL++){
         switch(regL){
@@ -308,42 +308,22 @@ void CCM2515::setConfig(uint8_t brp, uint8_t ps1, uint8_t ps2, uint8_t prseg){
  * @param[in] prseg  : Propagation Segment Length bits
  * @param[in] sjw    : Synchronization Jump Width
  * @return           none
+ * @par       Jan 6, 2021 : Change Registor change method
  */
 void CCM2515::setConfig(uint8_t brp, uint8_t ps1, uint8_t ps2, uint8_t prseg, uint8_t sjw){
     uint8_t data[3] = {0};
 
-    data[0] = MCP2515_REG_CNF1;
-    data[1] = MCP2515_MSK_BRP;
-    data[2] = brp << MCP2515_OFST_BRP;
-    orderSend(MCP2515_CMD_BITMOD, data, 3);
-    data[1] = MCP2515_MSK_SJW;
-    data[2] = sjw << MCP2515_OFST_SJW;
-    orderSend(MCP2515_CMD_BITMOD, data, 3);
+    data[0] |=  brp << MCP2515_OFST_BRP;
+    data[0] |=  sjw << MCP2515_OFST_SJW;
 
-    data[0] = MCP2515_REG_CNF2;
-    data[1] = MCP2515_MSK_PS1;
-    data[2] = ps1 << MCP2515_OFST_PS1;
-    orderSend(MCP2515_CMD_BITMOD, data, 3);
-    data[1] = MCP2515_MSK_PRSEG;
-    data[2] = prseg << MCP2515_OFST_PRSEG;
-    orderSend(MCP2515_CMD_BITMOD, data, 3);
-    data[1] = MCP2515_MSK_SAM;
-    data[2] = 0 << MCP2515_OFST_SAM;
-    orderSend(MCP2515_CMD_BITMOD, data, 3);
-    data[1] = MCP2515_MSK_BTLMD;
-    data[2] = 1 << MCP2515_OFST_BTLMD;
-    orderSend(MCP2515_CMD_BITMOD, data, 3);
+    data[1] |=  ps1 << MCP2515_OFST_PS1;
+    data[1] |=  prseg << MCP2515_OFST_PRSEG;
+    data[1] |=  0 << MCP2515_OFST_SAM;
+    data[1] |=  1 << MCP2515_OFST_BTLMD;
 
+    data[2] |=  data[2] = ps2 << MCP2515_OFST_PS2;
 
-    data[0] = MCP2515_REG_CNF3;
-    data[1] = MCP2515_MSK_PS2;
-    data[2] = ps2 << MCP2515_OFST_PS2;
-    orderSend(MCP2515_CMD_BITMOD, data, 3);
-
-    orderRecv(MCP2515_CMD_READ, MCP2515_REG_CNF3, data,3);
-    Serial.printf("        |- CNF1 %02X, ",data[2]);
-    Serial.printf("CNF2 %02X, ",data[1]);
-    Serial.printf("CNF3 %02X\n",data[0]);
+    setConfig(data[0], data[1], data[2]);
 }
 
 
@@ -378,15 +358,34 @@ void CCM2515::setConfig(uint8_t cnf1, uint8_t cnf2, uint8_t cnf3){
     orderSend(MCP2515_CMD_BITMOD, data, 3);
 
 
-    orderRecv(MCP2515_CMD_READ, MCP2515_REG_CNF3, data,3);
+    readBytes(MCP2515_REG_CNF3, data,3);
     Serial.printf("        |- CNF1 %02X, ", data[2]);
     Serial.printf("CNF2 %02X, ",data[1]);
     Serial.printf("CNF3 %02X\n",data[0]);
 }
 
+
+/**
+ * @brief SPI Interface : One registor read
+ */
+uint8_t CCM2515::readByte(uint8_t address){
+    uint8_t data;
+    orderRecv(MCP2515_CMD_READ, address, &data, 1);
+    return data;
+}
+
+/**
+ * @brief SPI Interface : Registors read
+ */
+size_t CCM2515::readBytes(uint8_t address, uint8_t *data, size_t len){
+    orderRecv(MCP2515_CMD_READ, address, data, len);
+    return len;
+}
+
+
 /**
  *  @brief SPI Interface : Send an instruction
- *  @param [in] inst     :  MCP2515_CMD_####
+ *  @param [in] inst     :  MCP2515_CMD_RESET or MCP2515_CMD_RTS
  */
 uint8_t CCM2515::orderInst(uint8_t inst){
     return orderSend(inst, (uint8_t *)0, 0);
@@ -414,6 +413,9 @@ uint8_t CCM2515::orderSend(uint8_t inst, uint8_t *sendData, int slen){
 
 /**
  *  @brief SPI Interface : Receive Data by send an instruction
+ *  @param [in] inst      : READ RX BUFFER or READ STATUS or READ RX STATUS
+ *  @retval  0  : success
+ *  @retval > 0 : error 
  */
 uint8_t CCM2515::orderRecv(uint8_t inst, uint8_t *recvData, int rlen){
     return orderRecv(inst, (uint8_t *)0, recvData, rlen);
@@ -425,6 +427,8 @@ uint8_t CCM2515::orderRecv(uint8_t inst, uint8_t *recvData, int rlen){
  *  @param [in] address   : MCP2515_REG_####
  *  @param [out] recvData : pointer to buffer of received data
  *  @param [in]  rlen     : request data length
+ *  @retval  0  : success
+ *  @retval > 0 : error 
  */
 uint8_t CCM2515::orderRecv(uint8_t inst, uint8_t address, uint8_t *recvData, int rlen){
     return orderRecv(inst, &address, recvData, rlen);
@@ -436,6 +440,8 @@ uint8_t CCM2515::orderRecv(uint8_t inst, uint8_t address, uint8_t *recvData, int
  *  @param [in] address   : (pointer to register number) MCP2515_REG_####
  *  @param [out] recvData : pointer to buffer of received data
  *  @param [in]  rlen     : request data length
+ *  @retval  0  : success
+ *  @retval > 0 : error 
  */
 uint8_t CCM2515::orderRecv(uint8_t inst, uint8_t *address, uint8_t *recvData, int rlen){
     SPI.beginTransaction(mcp2515_spicnf);
