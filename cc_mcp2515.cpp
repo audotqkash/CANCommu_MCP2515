@@ -427,6 +427,91 @@ void CCM2515::pinMode(mcp2515pin pin, mcp2515pinmd md){
     
 }
 
+/**
+ * @brief Check if a data in any Rx Buffer.
+ * @param[in,out] void Nothing 
+ * @return 0x0 : データなし
+ *         0x1 : RXB0にデータ
+ *         0x2 : RXB1にデータ
+ * @note 特になし
+ */
+uint8_t CCM2515::getRxStat(void){
+    uint8_t data;
+    orderRecv(MCP2515_CMD_RDRXSTAT, &data, 1);
+    return data;
+}
+
+
+/**
+ * @brief Extract data from RX Buffer #0 or #1
+ */
+candata_st CCM2515::recv(uint8_t rxnum){
+    candata_st dat;
+    uint8_t ret;
+    //Serial.printf("   ----- RX%d Data Extract -----\n", buffnum);
+    dat.bnum = 0xff;
+    memset(dat.data, 0x0, sizeof(uint8_t) * 8);
+    dat.len = 0;
+
+    ret = getRxStat();
+    if(rxnum == 0 && (ret & MCP2515_MSK_MSGRX0) != 0){
+        dat.bnum = 0;
+        dat.len = extRxBuf(&dat);
+        bitsWrite(MCP2515_REG_CANINTF, MCP2515_MSK_RX0IF, 0x0);
+    }else;
+
+    if(rxnum == 1 && (ret & MCP2515_MSK_MSGRX1) != 0){
+        dat.bnum = 1;
+        dat.len = extRxBuf(&dat);
+        bitsWrite(MCP2515_REG_CANINTF, MCP2515_MSK_RX1IF, 0x0);
+    }else;
+
+    return dat;
+}
+
+/**
+ * @brief
+ * @pre   set dat.bnum
+ * @retval packet length
+ * @retval 0xFF : Error
+ */
+uint8_t CCM2515::extRxBuf(candata_st *dat){
+    uint8_t pcthead[5];
+    uint8_t cmdbit = 0;
+    
+    
+    if(dat->bnum == 0){  
+        cmdbit = 000;         /* RX0BUF / SIDH*/
+    }else if(dat->bnum == 1){
+        cmdbit = 100;         /* RX1BUF / SIDH */
+    }else{
+        return 0xFF;         /* 存在しないバッファ番号 */
+    }
+
+    dat->time = millis();
+
+    orderRecv((uint8_t)(MCP2515_CMD_RDRXBUF | cmdbit), pcthead, 5);
+
+    dat->eid_en = (pcthead[1] & MCP2515_MSK_EXIDE) != 0? 1 : 0;
+    if(dat->eid_en == 0){
+        dat->id  = (uint32_t)pcthead[0] << 3;
+        dat->id |= (pcthead[1] & 0xE0) >> 5;
+    }else{
+        dat->id  = (uint32_t)pcthead[0] << 21;
+        dat->id |= ((uint32_t)pcthead[1] & 0xE0) << 13 ;
+        dat->id |= ((uint32_t)pcthead[1] & 0x03) << 16 ;
+        dat->id |= ((uint32_t)pcthead[2] & 0xFF) << 8 ;
+        dat->id |= ((uint32_t)pcthead[3] & 0xFF)  ;
+    }
+
+    dat->len = pcthead[4] & 0xF;                               /* Extact DLC */
+
+    if(dat->len > 0){
+        orderRecv((uint8_t)(MCP2515_CMD_RDRXBUF | cmdbit | 0x10), dat->data, dat->len);
+    }
+
+    return dat->len;
+}
 
 /**
  * @brief SPI Interface : One registor read
@@ -537,9 +622,16 @@ uint8_t CCM2515::orderRecv(uint8_t inst, uint8_t *address, uint8_t *recvData, in
     if(address != 0){
         SPI.transfer(*address);
     }
+    if(inst == 0x92){
+        Serial.println(rlen);
+    }
     for(int i = 0; i < rlen; i++){
         recvData[i] = SPI.transfer(0);
+        if(inst == 0x92){
+            Serial.print(recvData[i]);
+        }
     }
+
     MCP2515_DESELECT();
     SPI.endTransaction();
     return 0;

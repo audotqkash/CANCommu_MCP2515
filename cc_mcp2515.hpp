@@ -7,8 +7,8 @@
  * $Version 1.0
  * @par     June 1st, 2021 : Implemented the SPI Interface
  *          June 6th, 2021 : Implemented the CAN Configurator
- *          June 6th 2021  : Implemented the Registor Access Functions
- *
+ *          June 6th, 2021 : Implemented the Registor Access Functions
+ *          June 6th, 2021 : Implemented the CAN Receive method
  *
  */
 
@@ -17,7 +17,7 @@
 #include <stdint.h>
 #include <SPI.h>
 #include "mcp2515_defs.h"
-#include "mcp2515_stdefs.h"
+#include "mcp2515_stdefs.hpp"
 
 #undef bitWrite
 
@@ -36,6 +36,7 @@ class CCM2515
         void _init(uint32_t cs);
         uint8_t checkinit(void); 
         
+        uint8_t extRxBuf(candata_st *dat);
 
         uint8_t orderInst(uint8_t inst);
         uint8_t orderSend(uint8_t inst, uint8_t *sendData, int slen);
@@ -60,6 +61,9 @@ class CCM2515
         void setConfig(uint8_t cnf1, uint8_t cnf2, uint8_t cnf3);
 
         void pinMode(mcp2515pin rxbnum, mcp2515pinmd md);
+
+        uint8_t getRxStat(void);
+        candata_st recv(uint8_t rxnum);
 
         uint8_t readByte(uint8_t address);
         size_t  readBytes(uint8_t address, uint8_t *data, size_t len);
