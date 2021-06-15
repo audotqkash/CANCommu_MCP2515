@@ -6,6 +6,7 @@
  * $Version 1.0
  * @par     June 1st, 2021 : Implemented the SPI Interface
  *          June 6th, 2021 : Implemented the CAN Configurator
+ *          June 15th, 2021: Implemented the CAN Recv&Send function
  * 
  */
 
@@ -507,10 +508,69 @@ uint8_t CCM2515::extRxBuf(candata_st *dat){
     dat->len = pcthead[4] & 0xF;                               /* Extact DLC */
 
     if(dat->len > 0){
-        orderRecv((uint8_t)(MCP2515_CMD_RDRXBUF | cmdbit | 0x10), dat->data, dat->len);
+        orderRecv((uint8_t)(MCP2515_CMD_RDRXBUF | cmdbit | 0x2), dat->data, dat->len);
     }
 
     return dat->len;
+}
+
+/**
+ * @brief Send CAN Data
+ */
+uint8_t CCM2515::send(candata_st dat){
+    setTxData(&dat);
+    send(dat.bnum);
+    return 0;
+}
+
+/**
+ * @brief Set a CAN Data to TX Buffer, however do not send yet.
+ */
+void CCM2515::setTxData(candata_st *dat){
+    uint8_t packet[13];
+    uint8_t cmdbit = 0;
+
+    if(dat->bnum >= 3){
+        dat->bnum = 2;
+    }
+    cmdbit = 1 * dat->bnum;
+
+    if(dat->eid_en == false){
+        Serial.printf("dat->id 0x%2x\n", dat->id);
+        packet[0] = (dat->id & 0x7F8) >> 3;
+        packet[1] = (dat->id & 0x7) << 5;
+        packet[2] = 0;
+        packet[3] = 0;
+    }else{
+        packet[1] = MCP2515_MSK_EXIDE;
+        packet[0] = (dat->id & 0x1FE00000) >> 21;
+        packet[1] |= (dat->id &  0x1C0000) >> 13;
+        packet[1] |= (dat->id &   0x30000) >> 16;
+        packet[2] = (dat->id &     0xFF00) >> 8;
+        packet[3] = (dat->id &       0xFF);
+    }
+    if(dat->len >= 9){
+        dat->len = 8;
+    }
+    packet[4] = dat->len;
+
+    for(int i = 0; i < dat->len; i++){
+        packet[5 + i] = dat->data[i];
+    }
+
+    orderSend(MCP2515_CMD_LDTXBUF | cmdbit, packet, 5 + dat->len);
+}
+
+/**
+ * @brief send TxBuffer Data
+ * @pre setTxData()
+ */
+uint8_t CCM2515::send(uint8_t bnum){
+    if(bnum >= 3){
+        return 1;
+    }
+    orderInst(MCP2515_CMD_RTS | (0x1 << bnum));
+    return 0;
 }
 
 /**
@@ -572,6 +632,7 @@ uint8_t CCM2515::orderSend(uint8_t inst, uint8_t *sendData, int slen){
     SPI.beginTransaction(mcp2515_spicnf);
     MCP2515_SELECT();
     SPI.transfer(inst);
+
     if(sendData != 0){
         for(int i = 0; i < slen; i++){
             SPI.transfer(sendData[i]);
@@ -622,14 +683,9 @@ uint8_t CCM2515::orderRecv(uint8_t inst, uint8_t *address, uint8_t *recvData, in
     if(address != 0){
         SPI.transfer(*address);
     }
-    if(inst == 0x92){
-        Serial.println(rlen);
-    }
+
     for(int i = 0; i < rlen; i++){
         recvData[i] = SPI.transfer(0);
-        if(inst == 0x92){
-            Serial.print(recvData[i]);
-        }
     }
 
     MCP2515_DESELECT();

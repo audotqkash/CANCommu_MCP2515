@@ -9,7 +9,7 @@
  *          June 6th, 2021 : Implemented the CAN Configurator
  *          June 6th, 2021 : Implemented the Registor Access Functions
  *          June 6th, 2021 : Implemented the CAN Receive method
- *
+ *          June 15th, 2021 : Implemented the CAN Send method
  */
 
 #pragma once
@@ -64,6 +64,9 @@ class CCM2515
 
         uint8_t getRxStat(void);
         candata_st recv(uint8_t rxnum);
+        uint8_t send(candata_st);
+        void setTxData(candata_st *);
+        uint8_t send(uint8_t);
 
         uint8_t readByte(uint8_t address);
         size_t  readBytes(uint8_t address, uint8_t *data, size_t len);
