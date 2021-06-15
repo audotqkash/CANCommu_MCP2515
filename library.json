@@ -1,0 +1,20 @@
+{
+    "name": "CANCommu_MCP2515",
+    "description": "A driver of MCP2515 (Controller Area Network Controller) for SAMD51",
+    "keywords": "wioterminal,mcp2515",
+    "authors": {
+      "name": "audotqkash",
+      "url": "https://github.com/audotqkash/",
+      "maintainer": true
+    },
+    "repository": {
+      "type": "git",
+      "url": "git@github.com:audotqkash/CANCommu_MCP2515.git"
+    },
+    "version": "0.0.1",
+    "frameworks": ["arduino"],
+    "platforms": ["atmelsam"],
+    "build": {
+      "libArchive": false
+    }
+  }
