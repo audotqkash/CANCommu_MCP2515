@@ -1,10 +1,11 @@
 /**
- * @file    sample1_basicuse.ino
+ * @file    sample2_L-chika.ino
  * @brief   MCP2515 test code
  * @details This program is for WioTerminal.
  * @note    for Arduino platform (include platformio)
  * @date    June 6, 2021.
  * @par     June 6, 2021. : Implemented minimum setup flow
+ * @par     June 6, 2021  : Implemented setting of digital pin
  */
 
 #include <Arduino.h>
