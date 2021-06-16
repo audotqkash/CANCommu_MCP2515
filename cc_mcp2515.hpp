@@ -67,7 +67,7 @@ class CCM2515
         uint8_t send(candata_st);
         void setTxData(candata_st *);
         uint8_t send(uint8_t);
-
+  
         uint8_t readByte(uint8_t address);
         size_t  readBytes(uint8_t address, uint8_t *data, size_t len);
         void    bitWrite(uint8_t address, uint8_t bitnum, uint8_t value);
