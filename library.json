@@ -2,7 +2,7 @@
     "name": "CANCommu_MCP2515",
     "description": "A driver of MCP2515 (Controller Area Network Controller) for SAMD51",
     "keywords": "wioterminal,mcp2515",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "authors": {
       "name": "audotqkash",
       "url": "https://github.com/audotqkash/",
