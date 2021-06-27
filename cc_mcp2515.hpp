@@ -10,6 +10,7 @@
  *          June 6th, 2021 : Implemented the Registor Access Functions
  *          June 6th, 2021 : Implemented the CAN Receive method
  *          June 15th, 2021 : Implemented the CAN Send method
+ *          June 27th, 2021: Implemented RX buffer Data restrict (Mask & Filter)
  */
 
 #pragma once
@@ -28,6 +29,7 @@ class CCM2515
         uint32_t _canspd = 0;
         uint32_t _oscfrq = 0;
         uint8_t  mode    = 0xff;
+        uint8_t  _tmpMode = 0xff;
         mcp2515pktype _pktype = mcp2515pktype::soic;
 
         SPISettings mcp2515_spicnf;
@@ -46,6 +48,8 @@ class CCM2515
 
 
         void printDouble(double num);
+        uint8_t setTmpMode(mcp2515mode);
+        uint8_t unsetTmpMode(void);
 
 
     public: 
@@ -55,10 +59,14 @@ class CCM2515
         uint8_t begin(void);            /* end of setup */
         uint8_t reset(void);            /* reset        */
 
+        void setMode(mcp2515mode);
+
         bool setConfig(uint32_t canspd, canbaudrate oscfreq);
         void setConfig(uint8_t brp, uint8_t ps1, uint8_t ps2, uint8_t prseg);
         void setConfig(uint8_t brp, uint8_t ps1, uint8_t ps2, uint8_t prseg, uint8_t sjw);
         void setConfig(uint8_t cnf1, uint8_t cnf2, uint8_t cnf3);
+        void setMask(canmask_st);
+        void getMask(canmask_st *);
 
         void pinMode(mcp2515pin rxbnum, mcp2515pinmd md);
 
@@ -70,6 +78,7 @@ class CCM2515
   
         uint8_t readByte(uint8_t address);
         size_t  readBytes(uint8_t address, uint8_t *data, size_t len);
+        void    writeByte(uint8_t address, uint8_t data);
         void    bitWrite(uint8_t address, uint8_t bitnum, uint8_t value);
         void    bitsWrite(uint8_t address, uint8_t mask, uint8_t value);
 

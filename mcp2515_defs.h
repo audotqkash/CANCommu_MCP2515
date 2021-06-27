@@ -7,6 +7,7 @@
  * @par     May 31th, 2021 : MCP2515 Register Address, Operation Mode, Instruction 
  * 			June 6th, 2021 : Registor Mask and functional bit offset for CTRL,STAT and CNF
  * 			June 6th, 2021 : Receive CAN Data
+ * 			June 16th,2021 : RX Buffer Mask & Filter Register
  *
  */
 
@@ -75,7 +76,7 @@
 /* MCP2515 Quick Command */
 #define MCP2515_CMD_RESET	0xC0
 #define MCP2515_CMD_READ	0x03
-#define MCP2515_CMD_WRITE	0x20
+#define MCP2515_CMD_WRITE	0x02
 #define MCP2515_CMD_BITMOD	0x05
 #define MCP2515_CMD_RDRXBUF	0x90 /* ref: DS20001801J FIGURE 12-3  */
 #define MCP2515_CMD_LDTXBUF	0x40 /* ref: DS20001801J FIGURE 12-5  */
@@ -87,7 +88,9 @@
 #define MCP2515_CMD_RDRXSTAT	0xB0 /* ref: DS20001801J FIGURE 12-9  */
 
 /* RX Buffer */
+#define MCP2515_FILTER_MAX 6
 #define MCP2515_REG_RXB0CTRL 0x60
+ #define MCP2515_MSK_RXM      0b01100000
 #define MCP2515_REG_RXB0SIDH 0x61
 #define MCP2515_REG_RXB0EID8 0x63
 #define MCP2515_REG_RXB0DLC  0x65
@@ -99,6 +102,25 @@
 #define MCP2515_REG_RXB1EID8 0x73
 #define MCP2515_REG_RXB1DLC  0x75
 #define MCP2515_REG_RXB1D0   0x76
+
+/* RX DATA MASK & FILTER */
+#define MCP2515_REG_RXM0SIDH 0x20
+#define MCP2515_REG_RXM0EID8 0x22
+#define MCP2515_REG_RXF0SIDH 0x00
+#define MCP2515_REG_RXF0EID8 0x02
+#define MCP2515_REG_RXF1SIDH 0x04
+#define MCP2515_REG_RXF1EID8 0x06
+
+#define MCP2515_REG_RXM1SIDH 0x24
+#define MCP2515_REG_RXM1EID8 0x28
+#define MCP2515_REG_RXF2SIDH 0x08
+#define MCP2515_REG_RXF2EID8 0x0A
+#define MCP2515_REG_RXF3SIDH 0x10
+#define MCP2515_REG_RXF3EID8 0x12
+#define MCP2515_REG_RXF4SIDH 0x14
+#define MCP2515_REG_RXF4EID8 0x16
+#define MCP2515_REG_RXF5SIDH 0x18
+#define MCP2515_REG_RXF5EID8 0x1A
 
 /* Interruption Flags */
 enum MCP2515_INTTYPE{

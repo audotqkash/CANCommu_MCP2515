@@ -7,6 +7,7 @@
  * @par     June 1st, 2021 : Implemented the SPI Interface
  *          June 6th, 2021 : Implemented the CAN Configurator
  *          June 15th, 2021: Implemented the CAN Recv&Send function
+ *          June 27th, 2021: Implemented RX buffer Data restrict (Mask & Filter)
  * 
  */
 
@@ -66,21 +67,8 @@ uint8_t CCM2515::begin(void){
 //    Serial.printf("   %d ->",ret);
 //
 
-    data[0] = MCP2515_REG_CANCTRL;
-    data[1] =  MCP2515_MSK_REQOP;
-    data[2] = MCP2515_MD_NORMAL << MCP2515_OFST_REQOP;
-    orderSend(MCP2515_CMD_BITMOD, data, 3);
+    setMode(mcp2515mode::normal);
     delay(500);
-
-//
-//    orderRecv(MCP2515_CMD_READ, MCP2515_REG_CANSTAT, data, 1);
-//    ret =  (data[0] & MCP2515_MSK_OPMOD) >> MCP2515_OFST_OPMOD;
-//    Serial.printf(" %d\n\n",ret);
-
-
-//    Serial.printf(" # Start Normal Mode\n");
-    mode = MCP2515_MD_NORMAL;
-
 
     return 0;
 }
@@ -141,6 +129,84 @@ uint8_t CCM2515::checkinit(void){
     return (result > 0);
 }
 
+/**
+ * @brief change operation mode
+ * 
+ */
+void CCM2515::setMode(mcp2515mode md){
+    uint8_t data[5];
+    uint8_t ret;
+
+    orderRecv(MCP2515_CMD_READ, MCP2515_REG_CANSTAT, data, 1);
+    ret =  (data[0] & MCP2515_MSK_OPMOD) >> MCP2515_OFST_OPMOD;
+    if(ret == (uint8_t) md){
+        mode = (uint8_t) md;
+        return;
+    }
+
+    data[0] = MCP2515_REG_CANCTRL;
+    data[1] = MCP2515_MSK_REQOP;
+    data[2] = (uint8_t)md << MCP2515_OFST_REQOP;
+    orderSend(MCP2515_CMD_BITMOD, data, 3);
+    mode = (uint8_t) md;
+}
+
+/**
+ * @brief temporary mode change, you must call unsetTmpmode when works are end
+ * @retval 0 : mode changed
+ * @retval 1 : request mode is already setted
+ * @retval 2 : mode changed (repeated call tmpModeChange)
+ */
+uint8_t CCM2515::setTmpMode(mcp2515mode md){
+    uint8_t data[5];
+    uint8_t ret;
+
+
+    orderRecv(MCP2515_CMD_READ, MCP2515_REG_CANSTAT, data, 1);
+    ret =  (data[0] & MCP2515_MSK_OPMOD) >> MCP2515_OFST_OPMOD;
+    if(ret == (uint8_t) md){
+        _tmpMode = 0xff;
+        mode = (uint8_t) md;
+        return 1;
+    }
+
+    if(_tmpMode == 0xff){
+        _tmpMode = ret;
+    }else{
+        _tmpMode = ret | 0x80;
+    }
+    data[0] = MCP2515_REG_CANCTRL;
+    data[1] = MCP2515_MSK_REQOP;
+    data[2] = (uint8_t)md << MCP2515_OFST_REQOP;
+    orderSend(MCP2515_CMD_BITMOD, data, 3);
+    mode = (uint8_t) md;
+
+    if((_tmpMode & 0x80) != 0){
+        return 2;
+    }else{
+        return 0;
+    }
+}
+
+/**
+ * @brief unset the temporary mode
+ * @retval 0 : mode changed
+ * @retval 1 : mode not changed
+ */
+uint8_t CCM2515::unsetTmpMode(void){
+    uint8_t data[5];
+    if(_tmpMode == 0xFF){
+        return 1;
+    }
+    data[0] = MCP2515_REG_CANCTRL;
+    data[1] = MCP2515_MSK_REQOP;
+    data[2] = (_tmpMode & 0x7F) << MCP2515_OFST_REQOP;
+    orderSend(MCP2515_CMD_BITMOD, data, 3);
+    mode = (_tmpMode & 0x7F);
+
+    _tmpMode = 0xff;
+    return 0;
+}
 
 #define MCP2515_PARAMCALC_LOOPMAX 30
 /**
@@ -320,7 +386,7 @@ void CCM2515::setConfig(uint8_t brp, uint8_t ps1, uint8_t ps2, uint8_t prseg){
  * @param[in] prseg  : Propagation Segment Length bits
  * @param[in] sjw    : Synchronization Jump Width
  * @return           none
- * @par       Jan 6, 2021 : Change Registor change method
+ * @par       Jan 6, 2021 : Change register change method
  */
 void CCM2515::setConfig(uint8_t brp, uint8_t ps1, uint8_t ps2, uint8_t prseg, uint8_t sjw){
     uint8_t data[3] = {0};
@@ -340,12 +406,12 @@ void CCM2515::setConfig(uint8_t brp, uint8_t ps1, uint8_t ps2, uint8_t prseg, ui
 
 
 /**
- * @brief  Manual Configuration of Time Segments by set MCP2515 CNF1 registor directly
+ * @brief  Manual Configuration of Time Segments by set MCP2515 CNF1 register directly
  * @details  
  * 
- * @param[in] cnf1    : Raw data of MCP2515 CNF1 registor 
- * @param[in] cnf2    : Raw data of MCP2515 CNF2 registor 
- * @param[in] cnf3    : Raw data of MCP2515 CNF3 registor 
+ * @param[in] cnf1    : Raw data of MCP2515 CNF1 register 
+ * @param[in] cnf2    : Raw data of MCP2515 CNF2 register 
+ * @param[in] cnf3    : Raw data of MCP2515 CNF3 register 
  * @return           none
  * @note https://www.kvaser.com/support/calculators/bit-timing-calculator/
  */
@@ -362,6 +428,207 @@ void CCM2515::setConfig(uint8_t cnf1, uint8_t cnf2, uint8_t cnf3){
     Serial.printf("        |- CNF1 %02X, ", data[2]);
     Serial.printf("CNF2 %02X, ",data[1]);
     Serial.printf("CNF3 %02X\n",data[0]);
+}
+
+/**
+ * @brief 受信バッファの受け入れデータ絞り込み設定
+ * @param[in] param マスク設定
+ * @note スタンダードID使用時のデータフィルタリングを考慮していません。
+ */
+void CCM2515::setMask(canmask_st param){
+    uint8_t ret;
+    setTmpMode(mcp2515mode::config);
+    if(ret == 1){
+        delay(100);
+    }
+
+    if(param.rxm0 == 0){
+        bitWrite(MCP2515_REG_RXB0CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::disable);
+    }else{
+        bitWrite(MCP2515_REG_RXB0CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::enable);
+        if(param.rxf0eid_en == false && param.rxf1eid_en == false){
+            writeByte(MCP2515_REG_RXM0SIDH + (0), (param.rxm0 & 0x7F8) >> 3);
+            writeByte(MCP2515_REG_RXM0SIDH + (1), (param.rxm0 & 0x007) << 5);
+            writeByte(MCP2515_REG_RXM0SIDH + (2), 0);                           /* 仮:本来はデータフィルタリング */
+            writeByte(MCP2515_REG_RXM0SIDH + (3), 0);                           /* 仮:本来はデータフィルタリング */
+        }else{
+            writeByte(MCP2515_REG_RXM0SIDH + (0), (param.rxm0 & 0x1FE00000) >> 21);
+            writeByte(MCP2515_REG_RXM0SIDH + (1), (param.rxm0 & 0x001C0000) >> 13 |  (param.rxm0 & 0x00030000) >> 16);
+            writeByte(MCP2515_REG_RXM0SIDH + (2), (param.rxm0 & 0x0000FF00) >> 8);
+            writeByte(MCP2515_REG_RXM0SIDH + (3), (param.rxm0 & 0x000000FF)     );
+        }
+    }
+    if(param.rxm1 == 0){
+        bitsWrite(MCP2515_REG_RXB1CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::disable);
+    }else{
+        bitsWrite(MCP2515_REG_RXB1CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::enable);
+        if(param.rxf2eid_en==false && param.rxf3eid_en==false && param.rxf4eid_en==false && param.rxf5eid_en==false){
+            writeByte(MCP2515_REG_RXM1SIDH + (0), (param.rxm1 & 0x7F8) >> 3);
+            writeByte(MCP2515_REG_RXM1SIDH + (1), (param.rxm1 & 0x007) << 5);
+            writeByte(MCP2515_REG_RXM1SIDH + (2), 0);                           /* 仮:本来はデータフィルタリング */
+            writeByte(MCP2515_REG_RXM1SIDH + (3), 0);                           /* 仮:本来はデータフィルタリング */
+        }else{
+            writeByte(MCP2515_REG_RXM1SIDH + (0), (param.rxm1 & 0x1FE00000) >> 21);
+            writeByte(MCP2515_REG_RXM1SIDH + (1), (param.rxm1 & 0x001C0000) >> 13 | (param.rxm1 & 0x00030000) >> 16);
+            writeByte(MCP2515_REG_RXM1SIDH + (2), (param.rxm1 & 0x0000FF00) >> 8);
+            writeByte(MCP2515_REG_RXM1SIDH + (3), (param.rxm1 & 0x000000FF)     );
+        }
+    }
+
+    Serial.printf("RXB0CTRL : %02X\n",readByte(MCP2515_REG_RXB0CTRL));
+
+    for(int i = 0; i < MCP2515_FILTER_MAX; i++){
+        uint32_t *fvaladdr = &param.rxf0 + i;
+        bool *feidenaddr = &param.rxf0eid_en + i;
+        if(*feidenaddr == false){ /* 現在は、データフィルタリングを考慮していない */
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 0), (*fvaladdr & 0x7F8) >> 3);  
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 1), (*fvaladdr & 0x007) << 5);
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 2), 0);
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 3), 0);
+        }else{
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 0), (*fvaladdr & 0x1FE00000) >> 21);
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 1), (*fvaladdr & 0x001C0000) >> 13 |
+                                                                                 (*fvaladdr & 0x00030000) >> 16 |
+                                                                                 MCP2515_MSK_EXIDE);
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 2), (*fvaladdr & 0x0000FF00) >> 8);
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 3), (*fvaladdr & 0x000000FF)     );
+        }
+    }
+
+    Serial.printf("RXF0CTRL : %02X\n",readByte(MCP2515_REG_RXF0SIDH));
+    Serial.printf("RXF0CTRL : %02X\n",readByte(MCP2515_REG_RXF0SIDH+1));
+    Serial.printf("RXF1CTRL : %02X\n",readByte(MCP2515_REG_RXF1SIDH));
+    Serial.printf("RXF1CTRL : %02X\n",readByte(MCP2515_REG_RXF1SIDH+1));
+
+    ret = unsetTmpMode();
+    if(ret == 0){
+        delay(100);
+    }
+}
+
+/**
+ * @brief 受信バッファの受け入れデータ絞り込み設定の現在値取得
+ * @param[in] param マスク設定
+ */
+void CCM2515::getMask(canmask_st *ret){
+    uint8_t regval;
+    
+    regval = readByte(MCP2515_REG_RXB0CTRL);
+    if((regval & MCP2515_MSK_RXM) != 0){
+        // Mask is disable
+        ret->rxm0 = 0x0;
+        ret->rxf0 = 0x0;
+        ret->rxf1 = 0x0;
+    }else{
+        // Mask is enabled
+        ret->rxm0 = 0;
+        regval = readByte(MCP2515_REG_RXM0SIDH + (0));
+        ret->rxm0 |= (uint32_t)regval << 21;
+        regval = readByte(MCP2515_REG_RXM0SIDH + (1));
+        ret->rxm0 |= ((uint32_t)regval & 0xE0) << 13;
+        ret->rxm0 |= ((uint32_t)regval & 0x03) << 16;
+        regval = readByte(MCP2515_REG_RXM0SIDH + (2));
+        ret->rxm0 |= (uint32_t)regval << 8;
+        regval = readByte(MCP2515_REG_RXM0SIDH + (3));
+        ret->rxm0 |= (uint32_t)regval;
+        
+        /*
+            writeByte(MCP2515_REG_RXM0SIDH + (0), (param.rxm0 & 0x1FE00000) >> 21);
+            writeByte(MCP2515_REG_RXM0SIDH + (1), (param.rxm0 & 0x001C0000) >> 13 |  (param.rxm0 & 0x00030000) >> 16);
+            writeByte(MCP2515_REG_RXM0SIDH + (2), (param.rxm0 & 0x0000FF00) >> 8);
+            writeByte(MCP2515_REG_RXM0SIDH + (3), (param.rxm0 & 0x000000FF)     );
+        */
+    }
+    regval = readByte(MCP2515_REG_RXB1CTRL);
+    if((regval & MCP2515_MSK_RXM) != 0){
+        // Mask is disable
+        ret->rxm1 = 0x0;
+        ret->rxf2 = 0x0;
+        ret->rxf3 = 0x0;
+        ret->rxf4 = 0x0;
+        ret->rxf5 = 0x0;
+    }else{
+        // Mask is enabled
+        ret->rxm1 = 0;
+        regval = readByte(MCP2515_REG_RXM1SIDH + (0));
+        ret->rxm1 |= (uint32_t)regval << 21;
+        regval = readByte(MCP2515_REG_RXM1SIDH + (1));
+        ret->rxm1 |= ((uint32_t)regval & 0xE0) << 13;
+        ret->rxm1 |= ((uint32_t)regval & 0x03) << 16;
+        regval = readByte(MCP2515_REG_RXM1SIDH + (2));
+        ret->rxm1 |= (uint32_t)regval << 8;
+        regval = readByte(MCP2515_REG_RXM1SIDH + (3));
+        ret->rxm1 |= (uint32_t)regval;
+    }
+
+    for(int i = 0; i < MCP2515_FILTER_MAX; i++){
+        uint32_t *fvaladdr = &(ret->rxf0) + i;
+        bool *feidenaddr = &(ret->rxf0eid_en) + i;
+        *fvaladdr = 0;
+        regval = readByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 0));
+        *fvaladdr |= (uint32_t)regval << 21;
+
+        regval = readByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 1));
+        *fvaladdr |= (uint32_t)(regval & 0xE0 ) << 13;
+        *fvaladdr |= (uint32_t)(regval & 0x03 ) << 16;
+        if((regval & MCP2515_MSK_EXIDE) != 0){
+            *feidenaddr = true;
+        }else{
+            *feidenaddr = false;
+        }
+
+        regval = readByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 2));
+        *fvaladdr |= (uint32_t)regval << 8;
+        
+        regval = readByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 3));
+        *fvaladdr |= (uint32_t)regval;
+
+
+        /*
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 0), (*fvaladdr & 0x1FE00000) >> 21);
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 1), (*fvaladdr & 0x001C0000) >> 13 |
+                                                                                 (*fvaladdr & 0x00030000) >> 16 |
+                                                                                 MCP2515_MSK_EXIDE);
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 2), (*fvaladdr & 0x0000FF00) >> 8);
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 3), (*fvaladdr & 0x000000FF)     );
+        */
+    }
+
+    if(ret->rxf0eid_en && ret->rxf1eid_en){
+        // do nothing
+
+
+        Serial.printf("RXM0 : %02X\n",ret->rxm0);
+        Serial.printf("RXF0 : %02X / %d\n",ret->rxf0,ret->rxf0eid_en);
+        Serial.printf("RXF1 : %02X / %d\n",ret->rxf1,ret->rxf1eid_en);
+    }else{
+        ret->rxm0 >>= 18;
+
+        Serial.printf("RXM0 : %02X\n",ret->rxm0);
+        Serial.printf("RXF0 : %02X(%02X) / %d\n",ret->rxf0 >> 18, ret->rxf0,ret->rxf0eid_en);
+        Serial.printf("RXF1 : %02X(%02X) / %d\n",ret->rxf1 >> 18, ret->rxf1,ret->rxf1eid_en);
+    }
+    
+
+    if(ret->rxf2eid_en && ret->rxf3eid_en && ret->rxf4eid_en && ret->rxf5eid_en){
+        // do nothing
+
+
+        Serial.printf("RXM1 : %02X\n",ret->rxm1);
+        Serial.printf("RXF2 : %02X / %d\n",ret->rxf2,ret->rxf2eid_en);
+        Serial.printf("RXF3 : %02X / %d\n",ret->rxf3,ret->rxf3eid_en);
+        Serial.printf("RXF4 : %02X / %d\n",ret->rxf4,ret->rxf4eid_en);
+        Serial.printf("RXF5 : %02X / %d\n",ret->rxf5,ret->rxf5eid_en);
+    }else{
+        ret->rxm1 >>= 18;
+
+
+        Serial.printf("RXM1 : %02X\n",ret->rxm1);
+        Serial.printf("RXF2 : %02X(%02X) / %d\n",ret->rxf2 >> 18, ret->rxf2,ret->rxf2eid_en);
+        Serial.printf("RXF3 : %02X(%02X) / %d\n",ret->rxf3 >> 18, ret->rxf3,ret->rxf3eid_en);
+        Serial.printf("RXF4 : %02X(%02X) / %d\n",ret->rxf4 >> 18, ret->rxf4,ret->rxf4eid_en);
+        Serial.printf("RXF5 : %02X(%02X) / %d\n",ret->rxf5 >> 18, ret->rxf5,ret->rxf5eid_en);
+    }
 }
 
 /**
@@ -574,7 +841,7 @@ uint8_t CCM2515::send(uint8_t bnum){
 }
 
 /**
- * @brief SPI Interface : One registor read
+ * @brief SPI Interface : One register read
  */
 uint8_t CCM2515::readByte(uint8_t address){
     uint8_t data;
@@ -583,7 +850,7 @@ uint8_t CCM2515::readByte(uint8_t address){
 }
 
 /**
- * @brief SPI Interface : Registors read
+ * @brief SPI Interface : Registers read continious
  */
 size_t CCM2515::readBytes(uint8_t address, uint8_t *data, size_t len){
     orderRecv(MCP2515_CMD_READ, address, data, len);
@@ -591,15 +858,29 @@ size_t CCM2515::readBytes(uint8_t address, uint8_t *data, size_t len){
 }
 
 /**
- * @brief modify bit value of registor
+ * @brief SPI Interface : One register write
+ */
+void CCM2515::writeByte(uint8_t address, uint8_t data){
+    uint8_t tmp[2];
+    tmp[0] = address;
+    tmp[1] = data;
+    orderSend(MCP2515_CMD_WRITE, tmp, 2);
+}
+
+/**
+ * @brief modify selected one bit value of register
+ * @param address[in]   : register value
+ * @param bitnum  bit position (one bit)
+ * @param value  write value (0 or 1)
+ * @return  none
  */
 void CCM2515::bitWrite(uint8_t address, uint8_t bitnum, uint8_t value){
     bitsWrite(address, bit(bitnum), (value & 0x1) << bitnum);
 }
 
 /**
- * @brief modify selected bits value of registor
- * @param address[in]   : registor value
+ * @brief modify selected bits value of register
+ * @param address[in]   : register value
  * @param mask   write bit mask
  * @param value  write value
  * @return  none
@@ -632,7 +913,6 @@ uint8_t CCM2515::orderSend(uint8_t inst, uint8_t *sendData, int slen){
     SPI.beginTransaction(mcp2515_spicnf);
     MCP2515_SELECT();
     SPI.transfer(inst);
-
     if(sendData != 0){
         for(int i = 0; i < slen; i++){
             SPI.transfer(sendData[i]);

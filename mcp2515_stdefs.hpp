@@ -6,6 +6,7 @@
  * @par  June 6th, 2021 : Configulation parameters
  *       June 6th, 2021 : Package Type, Digital pin
  *       June 6th, 2021 : Receive CAN Data
+ *       June 16th,2021 : RX Buffer Data Mask
  */
 #ifndef _MCP2515_STDEFS_H_
 #define _MCP2515_STDEFS_H_
@@ -28,7 +29,20 @@ enum mcp2515pin{
     INTERRUPT = MCP2515_PIN_INT,
 };
 
-enum mcp2515pinmd{
+enum class mcp2515mode{
+    normal = MCP2515_MD_NORMAL,
+    config = MCP2515_MD_CONFIG,
+    listen = MCP2515_MD_LISTEN,
+    loopback = MCP2515_MD_LOOPBACK,
+    sleep = MCP2515_MD_SLEEP,
+};
+
+enum class mcp2515mskmd{
+    disable = 0x60,
+    enable  = 0x00,
+};
+
+enum class mcp2515pinmd{
     disable = 0,
     interrupt = 6,
     low = 4,
@@ -84,6 +98,23 @@ typedef struct
     uint8_t tbit;
 }canctlprm;
 
+typedef struct
+{
+    uint32_t rxm0 = 0;                  /* Mask for RX Buffer #0 */
+    uint32_t rxm1 = 0;                  /* Mask for RX Buffer #1 */
+    uint32_t rxf0 = 0;                  /* Filter0 for RX Buffer #0 */
+    uint32_t rxf1 = 0;                  /* Filter1 for RX Buffer #0 */
+    uint32_t rxf2 = 0;                  /* Filter0 for RX Buffer #1 */
+    uint32_t rxf3 = 0;                  /* Filter1 for RX Buffer #1 */
+    uint32_t rxf4 = 0;                  /* Filter2 for RX Buffer #1 */
+    uint32_t rxf5 = 0;                  /* Filter3 for RX Buffer #1 */
+    bool     rxf0eid_en = false;
+    bool     rxf1eid_en = false;
+    bool     rxf2eid_en = false;
+    bool     rxf3eid_en = false;
+    bool     rxf4eid_en = false;
+    bool     rxf5eid_en = false;
+}canmask_st;
 
 
 #endif
