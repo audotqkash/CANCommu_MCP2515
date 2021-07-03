@@ -726,7 +726,7 @@ candata_st CCM2515::recv(uint8_t rxnum){
 }
 
 /**
- * @brief
+ * @brief Extract RX Buffer Data
  * @pre   set dat.bnum
  * @retval packet length
  * @retval 0xFF : Error
@@ -737,9 +737,9 @@ uint8_t CCM2515::extRxBuf(candata_st *dat){
     
     
     if(dat->bnum == 0){  
-        cmdbit = 000;         /* RX0BUF / SIDH*/
+        cmdbit = 0b000;         /* RX0BUF / SIDH*/
     }else if(dat->bnum == 1){
-        cmdbit = 100;         /* RX1BUF / SIDH */
+        cmdbit = 0b100;         /* RX1BUF / SIDH */
     }else{
         return 0xFF;         /* 存在しないバッファ番号 */
     }
