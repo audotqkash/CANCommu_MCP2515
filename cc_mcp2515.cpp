@@ -475,7 +475,7 @@ void CCM2515::setMask(canmask_st param){
         }
     }
 
-    Serial.printf("RXB0CTRL : %02X\n",readByte(MCP2515_REG_RXB0CTRL));
+//    Serial.printf("RXB0CTRL : %02X\n",readByte(MCP2515_REG_RXB0CTRL));
 
     for(int i = 0; i < MCP2515_FILTER_MAX; i++){
         uint32_t *fvaladdr = &param.rxf0 + i;
@@ -495,10 +495,10 @@ void CCM2515::setMask(canmask_st param){
         }
     }
 
-    Serial.printf("RXF0CTRL : %02X\n",readByte(MCP2515_REG_RXF0SIDH));
-    Serial.printf("RXF0CTRL : %02X\n",readByte(MCP2515_REG_RXF0SIDH+1));
-    Serial.printf("RXF1CTRL : %02X\n",readByte(MCP2515_REG_RXF1SIDH));
-    Serial.printf("RXF1CTRL : %02X\n",readByte(MCP2515_REG_RXF1SIDH+1));
+//    Serial.printf("RXF0CTRL : %02X\n",readByte(MCP2515_REG_RXF0SIDH));
+//    Serial.printf("RXF0CTRL : %02X\n",readByte(MCP2515_REG_RXF0SIDH+1));
+//    Serial.printf("RXF1CTRL : %02X\n",readByte(MCP2515_REG_RXF1SIDH));
+//    Serial.printf("RXF1CTRL : %02X\n",readByte(MCP2515_REG_RXF1SIDH+1));
 
     ret = unsetTmpMode();
     if(ret == 0){
@@ -595,39 +595,27 @@ void CCM2515::getMask(canmask_st *ret){
     }
 
     if(ret->rxf0eid_en && ret->rxf1eid_en){
-        // do nothing
-
-
-        Serial.printf("RXM0 : %02X\n",ret->rxm0);
-        Serial.printf("RXF0 : %02X / %d\n",ret->rxf0,ret->rxf0eid_en);
-        Serial.printf("RXF1 : %02X / %d\n",ret->rxf1,ret->rxf1eid_en);
+        // do nothing (拡張ID)
     }else{
         ret->rxm0 >>= 18;
 
-        Serial.printf("RXM0 : %02X\n",ret->rxm0);
-        Serial.printf("RXF0 : %02X(%02X) / %d\n",ret->rxf0 >> 18, ret->rxf0,ret->rxf0eid_en);
-        Serial.printf("RXF1 : %02X(%02X) / %d\n",ret->rxf1 >> 18, ret->rxf1,ret->rxf1eid_en);
+//        Serial.printf("RXM0 : %02X\n",ret->rxm0);
+//        Serial.printf("RXF0 : %02X(%02X) / %d\n",ret->rxf0 >> 18, ret->rxf0,ret->rxf0eid_en);
+//        Serial.printf("RXF1 : %02X(%02X) / %d\n",ret->rxf1 >> 18, ret->rxf1,ret->rxf1eid_en);
     }
     
 
     if(ret->rxf2eid_en && ret->rxf3eid_en && ret->rxf4eid_en && ret->rxf5eid_en){
-        // do nothing
-
-
-        Serial.printf("RXM1 : %02X\n",ret->rxm1);
-        Serial.printf("RXF2 : %02X / %d\n",ret->rxf2,ret->rxf2eid_en);
-        Serial.printf("RXF3 : %02X / %d\n",ret->rxf3,ret->rxf3eid_en);
-        Serial.printf("RXF4 : %02X / %d\n",ret->rxf4,ret->rxf4eid_en);
-        Serial.printf("RXF5 : %02X / %d\n",ret->rxf5,ret->rxf5eid_en);
+        // do nothing (拡張ID)
     }else{
         ret->rxm1 >>= 18;
 
 
-        Serial.printf("RXM1 : %02X\n",ret->rxm1);
-        Serial.printf("RXF2 : %02X(%02X) / %d\n",ret->rxf2 >> 18, ret->rxf2,ret->rxf2eid_en);
-        Serial.printf("RXF3 : %02X(%02X) / %d\n",ret->rxf3 >> 18, ret->rxf3,ret->rxf3eid_en);
-        Serial.printf("RXF4 : %02X(%02X) / %d\n",ret->rxf4 >> 18, ret->rxf4,ret->rxf4eid_en);
-        Serial.printf("RXF5 : %02X(%02X) / %d\n",ret->rxf5 >> 18, ret->rxf5,ret->rxf5eid_en);
+//        Serial.printf("RXM1 : %02X\n",ret->rxm1);
+//        Serial.printf("RXF2 : %02X(%02X) / %d\n",ret->rxf2 >> 18, ret->rxf2,ret->rxf2eid_en);
+//        Serial.printf("RXF3 : %02X(%02X) / %d\n",ret->rxf3 >> 18, ret->rxf3,ret->rxf3eid_en);
+//        Serial.printf("RXF4 : %02X(%02X) / %d\n",ret->rxf4 >> 18, ret->rxf4,ret->rxf4eid_en);
+//        Serial.printf("RXF5 : %02X(%02X) / %d\n",ret->rxf5 >> 18, ret->rxf5,ret->rxf5eid_en);
     }
 }
 
@@ -759,8 +747,7 @@ uint8_t CCM2515::extRxBuf(candata_st *dat){
     dat->time = millis();
 
     orderRecv((uint8_t)(MCP2515_CMD_RDRXBUF | cmdbit), pcthead, 5);
-
-    dat->eid_en = (pcthead[1] & MCP2515_MSK_EXIDE) != 0? 1 : 0;
+   dat->eid_en = (pcthead[1] & MCP2515_MSK_EXIDE) != 0 ? 1 : 0;
     if(dat->eid_en == 0){
         dat->id  = (uint32_t)pcthead[0] << 3;
         dat->id |= (pcthead[1] & 0xE0) >> 5;
@@ -785,6 +772,9 @@ uint8_t CCM2515::extRxBuf(candata_st *dat){
  * @brief Send CAN Data
  */
 uint8_t CCM2515::send(candata_st dat){
+    if(dat.len > 8){
+        dat.len = 8;
+    }
     setTxData(&dat);
     send(dat.bnum);
     return 0;
@@ -803,7 +793,7 @@ void CCM2515::setTxData(candata_st *dat){
     cmdbit = 1 * dat->bnum;
 
     if(dat->eid_en == false){
-        Serial.printf("dat->id 0x%2x\n", dat->id);
+//        Serial.printf("dat->id 0x%2x\n", dat->id);
         packet[0] = (dat->id & 0x7F8) >> 3;
         packet[1] = (dat->id & 0x7) << 5;
         packet[2] = 0;

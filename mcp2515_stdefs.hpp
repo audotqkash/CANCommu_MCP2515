@@ -62,7 +62,7 @@ typedef struct{
     bool     eid_en	= false;
     uint8_t  bnum	= 0;
     uint8_t  data[MAXCHAR_ONEMESSAGE] = {0};
-    uint8_t  len	= 0;
+    uint8_t  len	= 0xFF;
 
     /**
      * @brief show packet info 
