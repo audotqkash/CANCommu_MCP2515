@@ -67,6 +67,8 @@ class CCM2515
         void setConfig(uint8_t cnf1, uint8_t cnf2, uint8_t cnf3);
         void setMask(canmask_st);
         void getMask(canmask_st *);
+        void setBUKT(bool);
+        bool getBUKT(void);
 
         void pinMode(mcp2515pin rxbnum, mcp2515pinmd md);
 

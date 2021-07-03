@@ -513,6 +513,8 @@ void CCM2515::setMask(canmask_st param){
 void CCM2515::getMask(canmask_st *ret){
     uint8_t regval;
     
+    setTmpMode(mcp2515mode::config);
+    
     regval = readByte(MCP2515_REG_RXB0CTRL);
     if((regval & MCP2515_MSK_RXM) != 0){
         // Mask is disable
@@ -611,12 +613,37 @@ void CCM2515::getMask(canmask_st *ret){
         ret->rxm1 >>= 18;
 
 
-//        Serial.printf("RXM1 : %02X\n",ret->rxm1);
-//        Serial.printf("RXF2 : %02X(%02X) / %d\n",ret->rxf2 >> 18, ret->rxf2,ret->rxf2eid_en);
-//        Serial.printf("RXF3 : %02X(%02X) / %d\n",ret->rxf3 >> 18, ret->rxf3,ret->rxf3eid_en);
-//        Serial.printf("RXF4 : %02X(%02X) / %d\n",ret->rxf4 >> 18, ret->rxf4,ret->rxf4eid_en);
-//        Serial.printf("RXF5 : %02X(%02X) / %d\n",ret->rxf5 >> 18, ret->rxf5,ret->rxf5eid_en);
+        Serial.printf("RXM1 : %02X\n",ret->rxm1);
+        Serial.printf("RXF2 : %02X(%02X) / %d\n",ret->rxf2 >> 18, ret->rxf2,ret->rxf2eid_en);
+        Serial.printf("RXF3 : %02X(%02X) / %d\n",ret->rxf3 >> 18, ret->rxf3,ret->rxf3eid_en);
+        Serial.printf("RXF4 : %02X(%02X) / %d\n",ret->rxf4 >> 18, ret->rxf4,ret->rxf4eid_en);
+        Serial.printf("RXF5 : %02X(%02X) / %d\n",ret->rxf5 >> 18, ret->rxf5,ret->rxf5eid_en);
     }
+    unsetTmpMode();
+}
+
+/**
+ * @brief RXB0 RollOver (BUKT) Enable/Disable
+ * @return nothing
+ */
+void CCM2515::setBUKT(bool set){
+    setTmpMode(mcp2515mode::config);
+    bitWrite(MCP2515_REG_RXB0CTRL, MCP2515_MSK_BUKT, set==true? 1 : 0);
+    unsetTmpMode();
+}
+
+/**
+ * @brief RXB0 RollOver (BUKT) Enable/Disable
+ * @return Enable/Disable = True/False
+ */
+bool CCM2515::getBUKT(void){
+    uint8_t ret;
+    ret = readByte(MCP2515_REG_RXB0CTRL) & MCP2515_MSK_BUKT;
+    if(ret == 0){
+        return false;
+    }
+    return true;
+
 }
 
 /**
