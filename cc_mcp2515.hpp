@@ -77,6 +77,8 @@ class CCM2515
         uint8_t send(candata_st);
         void setTxData(candata_st *);
         uint8_t send(uint8_t);
+
+        bool isTxError(){return (readByte(MCP2515_REG_CANINTF) & MCP2515_MSK_MERRF) != 0;};
   
         uint8_t readByte(uint8_t address);
         size_t  readBytes(uint8_t address, uint8_t *data, size_t len);

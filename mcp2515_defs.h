@@ -85,13 +85,17 @@
  #define MCP2515_MSK_MSGBUF 0xC0 /* use to ret val of CMD_RDSTAT*/
  #define MCP2515_MSK_MSGRX0 0x40 /* use to ret val of CMD_RDSTAT*/
  #define MCP2515_MSK_MSGRX1 0x80 /* use to ret val of CMD_RDSTAT*/
-#define MCP2515_CMD_RDRXSTAT	0xB0 /* ref: DS20001801J FIGURE 12-9  */
+#define MCP2515_CMD_RDRXSTAT	 0xB0 /* ref: DS20001801J FIGURE 12-9  */
+ #define MCP2515_MSK_RXSTATMSG   0xC /* use to retval of CMD_RDRXSTAT */
+ #define MCP2515_MSK_RXSTATTYPE  0xC /* use to retval of CMD_RDRXSTAT */
+ #define MCP2515_MSK_RXSTATMATCH 0xC /* use to retval of CMD_RDRXSTAT */
 
 /* RX Buffer */
 #define MCP2515_FILTER_MAX 6
 #define MCP2515_REG_RXB0CTRL 0x60
  #define MCP2515_MSK_RXM      0b01100000
  #define MCP2515_MSK_BUKT     0b00000100
+ #define MCP2515_OFST_BUKT    2
 #define MCP2515_REG_RXB0SIDH 0x61
 #define MCP2515_REG_RXB0EID8 0x63
 #define MCP2515_REG_RXB0DLC  0x65
@@ -144,6 +148,8 @@ enum MCP2515_INTTYPE{
 #define MCP2515_OFST_RX0IF   0
 #define MCP2515_MSK_RX1IF    0b00000010
 #define MCP2515_OFST_RX1IF   1
+#define MCP2515_MSK_MERRF    0b10000000
+#define MCP2515_OFST_MERRF   7
 
 #define MCP2515_REG_TEC		0x1C /* Transmit Error Counter */
 #define MCP2515_REG_REC		0x1D /* Receive  Error Counter */
@@ -155,6 +161,8 @@ enum MCP2515_INTTYPE{
 #define MCP2515_PRI_LOW		0b00
 
 #define MCP2515_REG_TXB0CTRL	0x30
+#define MCP2515_MSK_TXREQ       0b00001000
+#define MCP2515_OFST_TXREQ      3
 #define MCP2515_REG_TXB1CTRL	0x40
 #define MCP2515_REG_TXB2CTRL	0x50
 #define MCP2515_REG_TXRTSCTRL	0x0D

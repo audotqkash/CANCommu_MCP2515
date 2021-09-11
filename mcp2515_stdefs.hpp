@@ -64,24 +64,30 @@ typedef struct{
     uint8_t  data[MAXCHAR_ONEMESSAGE] = {0};
     uint8_t  len	= 0xFF;
 
+
     /**
      * @brief show packet info 
      */
-    void show(char type){
+    void show(char type, const char *note){
         if(type == 'c'){
             /*TIME,format,ID,LENGTH,DATA,BUF#*/
-            Serial.printf("%lu,%c,0x%X,%d,0x%02X-%02X-%02X-%02X%02X%02X%02X%02X,%d,\"recv\"\n",
+            Serial.printf("%lu,%c,0x%X,%d,0x%02X-%02X-%02X-%02X%02X%02X%02X%02X,%d,\"recv\",%s\n",
                     time, 
                     eid_en? 'e' : 's',
                     id,
                     len,
                     data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7],
-                    bnum);
+                    bnum,
+                    note);
         }else{
             Serial.println("  |   time   |    id    |idtype| data len | " );
             Serial.printf("   %8lu    0x%04X       %c  %d\n", time,(uint32_t)id, eid_en? 'e' : 's', len);
-            Serial.printf("data(hex)  %02X%02X%02X%02X%02X%02X%02X%02X", data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7]);
+            Serial.printf("data(hex)  %02X%02X%02X%02X%02X%02X%02X%02X\n", data[0],data[1],data[2],data[3],data[4],data[5],data[6],data[7]);
+            Serial.printf("  note     %s\n",note);
         }
+    }
+    void show(char type){
+        show(type, "\"\"");
     }
 }candata_st;
 

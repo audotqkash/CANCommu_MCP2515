@@ -437,15 +437,15 @@ void CCM2515::setConfig(uint8_t cnf1, uint8_t cnf2, uint8_t cnf3){
  */
 void CCM2515::setMask(canmask_st param){
     uint8_t ret;
-    setTmpMode(mcp2515mode::config);
-    if(ret == 1){
+    ret = setTmpMode(mcp2515mode::config);
+    if(ret != 1){
         delay(100);
     }
 
     if(param.rxm0 == 0){
-        bitWrite(MCP2515_REG_RXB0CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::disable);
+        bitsWrite(MCP2515_REG_RXB0CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::disable);
     }else{
-        bitWrite(MCP2515_REG_RXB0CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::enable);
+        bitsWrite(MCP2515_REG_RXB0CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::enable);
         if(param.rxf0eid_en == false && param.rxf1eid_en == false){
             writeByte(MCP2515_REG_RXM0SIDH + (0), (param.rxm0 & 0x7F8) >> 3);
             writeByte(MCP2515_REG_RXM0SIDH + (1), (param.rxm0 & 0x007) << 5);
@@ -514,7 +514,6 @@ void CCM2515::getMask(canmask_st *ret){
     uint8_t regval;
     
     setTmpMode(mcp2515mode::config);
-    
     regval = readByte(MCP2515_REG_RXB0CTRL);
     if((regval & MCP2515_MSK_RXM) != 0){
         // Mask is disable
@@ -613,11 +612,11 @@ void CCM2515::getMask(canmask_st *ret){
         ret->rxm1 >>= 18;
 
 
-        Serial.printf("RXM1 : %02X\n",ret->rxm1);
-        Serial.printf("RXF2 : %02X(%02X) / %d\n",ret->rxf2 >> 18, ret->rxf2,ret->rxf2eid_en);
-        Serial.printf("RXF3 : %02X(%02X) / %d\n",ret->rxf3 >> 18, ret->rxf3,ret->rxf3eid_en);
-        Serial.printf("RXF4 : %02X(%02X) / %d\n",ret->rxf4 >> 18, ret->rxf4,ret->rxf4eid_en);
-        Serial.printf("RXF5 : %02X(%02X) / %d\n",ret->rxf5 >> 18, ret->rxf5,ret->rxf5eid_en);
+//        Serial.printf("RXM1 : %02X\n",ret->rxm1);
+//        Serial.printf("RXF2 : %02X(%02X) / %d\n",ret->rxf2 >> 18, ret->rxf2,ret->rxf2eid_en);
+//        Serial.printf("RXF3 : %02X(%02X) / %d\n",ret->rxf3 >> 18, ret->rxf3,ret->rxf3eid_en);
+//        Serial.printf("RXF4 : %02X(%02X) / %d\n",ret->rxf4 >> 18, ret->rxf4,ret->rxf4eid_en);
+//        Serial.printf("RXF5 : %02X(%02X) / %d\n",ret->rxf5 >> 18, ret->rxf5,ret->rxf5eid_en);
     }
     unsetTmpMode();
 }
@@ -628,7 +627,7 @@ void CCM2515::getMask(canmask_st *ret){
  */
 void CCM2515::setBUKT(bool set){
     setTmpMode(mcp2515mode::config);
-    bitWrite(MCP2515_REG_RXB0CTRL, MCP2515_MSK_BUKT, set==true? 1 : 0);
+    bitWrite(MCP2515_REG_RXB0CTRL, MCP2515_OFST_BUKT, set==true? 1 : 0);
     unsetTmpMode();
 }
 
