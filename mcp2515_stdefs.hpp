@@ -114,6 +114,14 @@ typedef struct
     uint32_t rxf3 = 0;                  /* Filter1 for RX Buffer #1 */
     uint32_t rxf4 = 0;                  /* Filter2 for RX Buffer #1 */
     uint32_t rxf5 = 0;                  /* Filter3 for RX Buffer #1 */
+    uint16_t rxdm0 = 0;   /* 16bit Data Filter (Standard Frame Only)*/
+    uint16_t rxdm1 = 0;   /* 16bit Data Filter (Standard Frame Only)*/
+    uint16_t rxdf0 = 0;   /* 16bit Data Filter (Standard Frame Only)*/
+    uint16_t rxdf1 = 0;   /* 16bit Data Filter (Standard Frame Only)*/
+    uint16_t rxdf2 = 0;   /* 16bit Data Filter (Standard Frame Only)*/
+    uint16_t rxdf3 = 0;   /* 16bit Data Filter (Standard Frame Only)*/
+    uint16_t rxdf4 = 0;   /* 16bit Data Filter (Standard Frame Only)*/
+    uint16_t rxdf5 = 0;   /* 16bit Data Filter (Standard Frame Only)*/
     bool     rxf0eid_en = false;
     bool     rxf1eid_en = false;
     bool     rxf2eid_en = false;

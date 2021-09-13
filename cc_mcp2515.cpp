@@ -434,6 +434,7 @@ void CCM2515::setConfig(uint8_t cnf1, uint8_t cnf2, uint8_t cnf3){
  * @brief 受信バッファの受け入れデータ絞り込み設定
  * @param[in] param マスク設定
  * @note スタンダードID使用時のデータフィルタリングを考慮していません。
+ * @note 拡張フレームが使用される場合，データフィルタ情報はクリアします。
  */
 void CCM2515::setMask(canmask_st param){
     uint8_t ret;
@@ -442,15 +443,22 @@ void CCM2515::setMask(canmask_st param){
         delay(100);
     }
 
-    if(param.rxm0 == 0){
+    if(param.rxf0eid_en == true || param.rxf1eid_en == true){
+        param.rxdm0 = 0;
+    }
+    if(param.rxf2eid_en==true || param.rxf3eid_en==true || param.rxf4eid_en==true || param.rxf5eid_en==true){
+        param.rxdm1 = 0;
+    }
+
+    if(param.rxm0 == 0 && param.rxdm0 == 0){
         bitsWrite(MCP2515_REG_RXB0CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::disable);
     }else{
         bitsWrite(MCP2515_REG_RXB0CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::enable);
         if(param.rxf0eid_en == false && param.rxf1eid_en == false){
             writeByte(MCP2515_REG_RXM0SIDH + (0), (param.rxm0 & 0x7F8) >> 3);
             writeByte(MCP2515_REG_RXM0SIDH + (1), (param.rxm0 & 0x007) << 5);
-            writeByte(MCP2515_REG_RXM0SIDH + (2), 0);                           /* 仮:本来はデータフィルタリング */
-            writeByte(MCP2515_REG_RXM0SIDH + (3), 0);                           /* 仮:本来はデータフィルタリング */
+            writeByte(MCP2515_REG_RXM1SIDH + (2), (param.rxdm0 & 0xFF00) >> 8);  /* データフィルタリング */
+            writeByte(MCP2515_REG_RXM1SIDH + (3), (param.rxdm0 & 0x00FF));       /* データフィルタリング */
         }else{
             writeByte(MCP2515_REG_RXM0SIDH + (0), (param.rxm0 & 0x1FE00000) >> 21);
             writeByte(MCP2515_REG_RXM0SIDH + (1), (param.rxm0 & 0x001C0000) >> 13 |  (param.rxm0 & 0x00030000) >> 16);
@@ -458,15 +466,16 @@ void CCM2515::setMask(canmask_st param){
             writeByte(MCP2515_REG_RXM0SIDH + (3), (param.rxm0 & 0x000000FF)     );
         }
     }
-    if(param.rxm1 == 0){
+    if(param.rxm1 == 0 && param.rxdm1 == 0){
         bitsWrite(MCP2515_REG_RXB1CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::disable);
     }else{
         bitsWrite(MCP2515_REG_RXB1CTRL, MCP2515_MSK_RXM, (uint8_t)mcp2515mskmd::enable);
         if(param.rxf2eid_en==false && param.rxf3eid_en==false && param.rxf4eid_en==false && param.rxf5eid_en==false){
+                                                                               /* 標準フレーム */
             writeByte(MCP2515_REG_RXM1SIDH + (0), (param.rxm1 & 0x7F8) >> 3);
             writeByte(MCP2515_REG_RXM1SIDH + (1), (param.rxm1 & 0x007) << 5);
-            writeByte(MCP2515_REG_RXM1SIDH + (2), 0);                           /* 仮:本来はデータフィルタリング */
-            writeByte(MCP2515_REG_RXM1SIDH + (3), 0);                           /* 仮:本来はデータフィルタリング */
+            writeByte(MCP2515_REG_RXM1SIDH + (2), (param.rxdm1 & 0xFF00) >> 8);  /* データフィルタリング */
+            writeByte(MCP2515_REG_RXM1SIDH + (3), (param.rxdm1 & 0x00FF));       /* データフィルタリング */
         }else{
             writeByte(MCP2515_REG_RXM1SIDH + (0), (param.rxm1 & 0x1FE00000) >> 21);
             writeByte(MCP2515_REG_RXM1SIDH + (1), (param.rxm1 & 0x001C0000) >> 13 | (param.rxm1 & 0x00030000) >> 16);
@@ -479,12 +488,13 @@ void CCM2515::setMask(canmask_st param){
 
     for(int i = 0; i < MCP2515_FILTER_MAX; i++){
         uint32_t *fvaladdr = &param.rxf0 + i;
+        uint16_t *dfiladdr = &param.rxdf0 + i;
         bool *feidenaddr = &param.rxf0eid_en + i;
         if(*feidenaddr == false){ /* 現在は、データフィルタリングを考慮していない */
             writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 0), (*fvaladdr & 0x7F8) >> 3);  
             writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 1), (*fvaladdr & 0x007) << 5);
-            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 2), 0);
-            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 3), 0);
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 2), (*dfiladdr & 0xFF00) >> 8);
+            writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 3), (*dfiladdr & 0x00FF));
         }else{
             writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 0), (*fvaladdr & 0x1FE00000) >> 21);
             writeByte(MCP2515_REG_RXF0SIDH + ((i / 3) << 4) + ((i % 3) * 4 + 1), (*fvaladdr & 0x001C0000) >> 13 |
@@ -598,25 +608,39 @@ void CCM2515::getMask(canmask_st *ret){
     if(ret->rxf0eid_en && ret->rxf1eid_en){
         // do nothing (拡張ID)
     }else{
+        ret->rxdm0 = (uint16_t)(ret->rxm0 & 0xFFFF);
         ret->rxm0 >>= 18;
+        ret->rxdf0 = (uint16_t)(ret->rxf0 & 0xFFFF);
+        ret->rxf0 >>= 18;
+        ret->rxdf1 = (uint16_t)(ret->rxf1 & 0xFFFF);
+        ret->rxf1 >>= 18;
 
-//        Serial.printf("RXM0 : %02X\n",ret->rxm0);
-//        Serial.printf("RXF0 : %02X(%02X) / %d\n",ret->rxf0 >> 18, ret->rxf0,ret->rxf0eid_en);
-//        Serial.printf("RXF1 : %02X(%02X) / %d\n",ret->rxf1 >> 18, ret->rxf1,ret->rxf1eid_en);
+        Serial.printf("RXM0 : %03X /   / %02X \n" , ret->rxm0,                 ret->rxdm0);
+        Serial.printf("RXF0 : %03X / %d / %02X \n", ret->rxf0,ret->rxf0eid_en, ret->rxdf0);
+        Serial.printf("RXF1 : %03X / %d / %02X \n", ret->rxf1,ret->rxf1eid_en, ret->rxdf1);
     }
     
 
     if(ret->rxf2eid_en && ret->rxf3eid_en && ret->rxf4eid_en && ret->rxf5eid_en){
         // do nothing (拡張ID)
     }else{
+        ret->rxdm1 = (uint16_t)(ret->rxm1 & 0xFFFF);
         ret->rxm1 >>= 18;
+        ret->rxdf2 = (uint16_t)(ret->rxf2 & 0xFFFF);
+        ret->rxf2 >>= 18;
+        ret->rxdf3 = (uint16_t)(ret->rxf3 & 0xFFFF);
+        ret->rxf3 >>= 18;
+        ret->rxdf4 = (uint16_t)(ret->rxf4 & 0xFFFF);
+        ret->rxf4 >>= 18;
+        ret->rxdf5 = (uint16_t)(ret->rxf5 & 0xFFFF);
+        ret->rxf5 >>= 18;
 
 
-//        Serial.printf("RXM1 : %02X\n",ret->rxm1);
-//        Serial.printf("RXF2 : %02X(%02X) / %d\n",ret->rxf2 >> 18, ret->rxf2,ret->rxf2eid_en);
-//        Serial.printf("RXF3 : %02X(%02X) / %d\n",ret->rxf3 >> 18, ret->rxf3,ret->rxf3eid_en);
-//        Serial.printf("RXF4 : %02X(%02X) / %d\n",ret->rxf4 >> 18, ret->rxf4,ret->rxf4eid_en);
-//        Serial.printf("RXF5 : %02X(%02X) / %d\n",ret->rxf5 >> 18, ret->rxf5,ret->rxf5eid_en);
+        Serial.printf("RXM1 : %03X /   / %02X \n" , ret->rxm0,                 ret->rxdm0);
+        Serial.printf("RXF2 : %03X / %d / %02X \n", ret->rxf2,ret->rxf2eid_en, ret->rxdf2);
+        Serial.printf("RXF3 : %03X / %d / %02X \n", ret->rxf3,ret->rxf3eid_en, ret->rxdf3);
+        Serial.printf("RXF4 : %03X / %d / %02X \n", ret->rxf4,ret->rxf4eid_en, ret->rxdf4);
+        Serial.printf("RXF5 : %03X / %d / %02X \n", ret->rxf5,ret->rxf5eid_en, ret->rxdf5);
     }
     unsetTmpMode();
 }
